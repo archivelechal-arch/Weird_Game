@@ -23,8 +23,8 @@
       <canvas id="game" width="900" height="480"></canvas>
     </main>
     <footer>
-      <div class="controls"> Live Info: Tidak ada satu orang pun yang berhasil mencapai bendera di atas</div>
-      <div class="credits"> Game Developer : <span id="creditName">Lechal Fiqh</span></div>
+      <div class="controls"> Live Info : Seharusnya sekrang bisa sih</div>
+      <div class="credits">Game Developer<span id="creditName">Lechal Fiqh</span></div>
     </footer>
   </div>
 
@@ -52,7 +52,8 @@
     {x:320,y:300,w:120,h:18},
     {x:520,y:360,w:140,h:18},
     {x:720,y:260,w:120,h:18},
-    {x:860,y:180,w:40,h:18},
+    {x:860,y:180,w:40,h:18}, // last high block
+    {x:780,y:220,w:80,h:18}, // added helper platform
   ];
 
   // Coins and goal
@@ -130,23 +131,16 @@
   }
 
   function drawPlayer(){
-    // simple 'mario-like' blocky character (no trademarked sprite)
     const p = player;
-    // legs
     ctx.fillStyle = '#222'; ctx.fillRect(p.x+6, p.y+p.h-12, 10, 12); ctx.fillRect(p.x+p.w-16, p.y+p.h-12, 10, 12);
-    // body
     ctx.fillStyle = '#d33'; ctx.fillRect(p.x+4, p.y+6, p.w-8, 20);
-    // head
     ctx.fillStyle = '#ffcc99'; ctx.fillRect(p.x+6, p.y-6, p.w-12, 16);
-    // hat
     ctx.fillStyle = '#d33'; ctx.fillRect(p.x+2, p.y-10, p.w-4, 6);
   }
 
   function draw(){
-    // background sky gradient already set by css but we clear
     ctx.clearRect(0,0,W,H);
 
-    // draw parallax clouds (simple)
     for (let i=0;i<6;i++){
       const cx = (i*180 + (Date.now()/60)%180);
       ctx.globalAlpha = 0.6; ctx.fillStyle = '#fff';
@@ -154,35 +148,26 @@
       ctx.globalAlpha = 1;
     }
 
-    // platforms
     for (let p of platforms){
       ctx.fillStyle = '#8B5A2B'; ctx.fillRect(p.x, p.y, p.w, p.h);
-      // top highlight
       ctx.fillStyle = '#c09060'; ctx.fillRect(p.x+2, p.y, p.w-4, 4);
     }
 
-    // coins
     for (let c of coins){
       if (c.collected) continue;
-      ctx.save();
-      ctx.translate(c.x, c.y);
+      ctx.save(); ctx.translate(c.x, c.y);
       ctx.beginPath(); ctx.ellipse(0,0,c.r,c.r*0.8,0,0,Math.PI*2);
-      ctx.fillStyle = 'gold'; ctx.fill();
-      ctx.restore();
+      ctx.fillStyle = 'gold'; ctx.fill(); ctx.restore();
     }
 
-    // goal (flag)
     ctx.fillStyle = '#333'; ctx.fillRect(goal.x, goal.y, 6, goal.h);
     ctx.fillStyle = '#ff0000'; ctx.fillRect(goal.x+6, goal.y+6, 18, 12);
 
-    // player
     drawPlayer();
 
-    // HUD
     ctx.fillStyle = '#111'; ctx.font = '18px ui-rounded, system-ui, Arial';
     ctx.fillText('Score: ' + score, 14, 28);
 
-    // small instructions when low on score
     ctx.globalAlpha = 0.85;
     ctx.fillStyle = '#00000033'; ctx.fillRect(W-220,10,210,36);
     ctx.globalAlpha = 1;
@@ -191,7 +176,6 @@
 
   function loop(){ update(); draw(); requestAnimationFrame(loop); }
 
-  // touch controls (mobile)
   function createTouchButtons(){
     const left = document.createElement('button'); const right = document.createElement('button'); const jump = document.createElement('button');
     left.textContent='◀'; right.textContent='▶'; jump.textContent='↑';
@@ -204,15 +188,11 @@
     jump.addEventListener('touchstart', e=>keys['Space']=true); jump.addEventListener('touchend', e=>keys['Space']=false);
   }
 
-  // init
   window.addEventListener('load', ()=>{
-    // if user wants to change credit name in-page, they can edit HTML or use console: setCredit('Nama Kamu')
     window.setCredit = name => { document.getElementById('creditName').textContent = name; };
-    // mobile detect for touch buttons
     if ('ontouchstart' in window) createTouchButtons();
     loop();
   });
-
 })();
 </script>
 </body>
