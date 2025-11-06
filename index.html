@@ -28,18 +28,18 @@
     <main style="flex:1;display:flex;align-items:center;justify-content:center;padding:14px;position:relative">
       <canvas id="game" width="900" height="480"></canvas>
 
-      <!-- Start overlay with 'image' title -->
+      <!-- Start overlay -->
       <div id="overlayStart">
         <div class="overlayInner">
           <canvas id="titleCanvas" class="titleCanvas" width="480" height="160"></canvas>
-          <div class="sub"> Woi <span class="credit">Tekan ini guys </span></div>
+          <div class="sub"> <span class="credit">Tekan ini guys</span></div>
           <div style="margin-top:14px">
-            <button id="startBtn" class="btn">Iyaa yang iniii</button>
+            <button id="startBtn" class="btn">Start Game</button>
           </div>
         </div>
       </div>
 
-      <!-- Win overlay (hidden) -->
+      <!-- Win overlay -->
       <div id="overlayWin" style="display:none;">
         <div class="overlayInner">
           <h2 id="winText">YOU WIN!</h2>
@@ -49,7 +49,6 @@
           </div>
         </div>
       </div>
-
     </main>
 
     <div class="hud">
@@ -70,25 +69,42 @@
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
 
-  // overlays
   const overlayStart = document.getElementById('overlayStart');
   const overlayWin = document.getElementById('overlayWin');
   const titleCanvas = document.getElementById('titleCanvas');
   const titleCtx = titleCanvas.getContext('2d');
 
-  // draw a funky "image" title on titleCanvas (no external font) -> hand-drawn style
+  // 🎵 Tambah backsound (musik retro lucu)
+  const bgmAudio = new Audio('https://cdn.pixabay.com/download/audio/2022/03/15/audio_6d4e51b01d.mp3?filename=retro-game-arcade-11254.mp3');
+  bgmAudio.loop = true;
+  bgmAudio.volume = 0.4;
+
+  let muted = false;
+  function startBGM() {
+    if (!muted) {
+      bgmAudio.currentTime = 0;
+      bgmAudio.play();
+    }
+  }
+  function stopBGM() {
+    bgmAudio.pause();
+    bgmAudio.currentTime = 0;
+  }
+
+  // Draw title text
   function drawTitle(){
-    const tc = titleCtx; tc.clearRect(0,0,titleCanvas.width,titleCanvas.height);
+    const tc = titleCtx;
+    tc.clearRect(0,0,titleCanvas.width,titleCanvas.height);
     tc.save(); tc.translate(titleCanvas.width/2, titleCanvas.height/2);
     const text = 'WEIRD GAME';
-    // background blobs
     for (let i=0;i<6;i++){
       tc.fillStyle = ['#FF6B6B','#FFD93D','#6BCB77','#4D96FF','#9D7AFF','#FF9F80'][i%6];
       tc.globalAlpha = 0.12;
-      tc.beginPath(); tc.ellipse(Math.cos(i)*60, Math.sin(i)*30, 140- i*12, 60 - i*6, Math.PI*i/6, 0, Math.PI*2); tc.fill();
+      tc.beginPath();
+      tc.ellipse(Math.cos(i)*60, Math.sin(i)*30, 140- i*12, 60 - i*6, Math.PI*i/6, 0, Math.PI*2);
+      tc.fill();
     }
     tc.globalAlpha = 1;
-    // draw each letter with slight rotation and shadow
     const letters = text.split('');
     let x = -titleCanvas.width/3;
     for (let i=0;i<letters.length;i++){
@@ -96,153 +112,117 @@
       tc.save();
       const rot = (Math.random()*0.18 - 0.09);
       tc.rotate(rot);
-      // shadow
-      tc.fillStyle = 'rgba(0,0,0,0.18)'; tc.font = 'bold 40px sans-serif'; tc.fillText(ch, x+4, 18+22);
-      // main fill
-      tc.fillStyle = ['#ff4d4d','#ff9f1c','#ffd400','#8bd14b','#5cc3ff','#c66bff'][i%6]; tc.font = 'bold 40px sans-serif'; tc.fillText(ch, x, 18+18);
-      // outline
+      tc.fillStyle = 'rgba(0,0,0,0.18)';
+      tc.font = 'bold 40px sans-serif';
+      tc.fillText(ch, x+4, 18+22);
+      tc.fillStyle = ['#ff4d4d','#ff9f1c','#ffd400','#8bd14b','#5cc3ff','#c66bff'][i%6];
+      tc.fillText(ch, x, 18+18);
       tc.lineWidth = 3; tc.strokeStyle = '#222'; tc.strokeText(ch, x, 18+18);
       tc.restore();
       x += 38;
     }
-
-    // subtitle hand-written effect
-    tc.font = '700 16px sans-serif'; tc.fillStyle = '#333'; tc.fillText('by Lechal Fiqh', -titleCanvas.width/2 + 32, titleCanvas.height/2 - 18);
+    tc.font = '700 16px sans-serif'; tc.fillStyle = '#333';
+    tc.fillText('by Lechal Fiqh', -titleCanvas.width/2 + 32, titleCanvas.height/2 - 18);
     tc.restore();
   }
   drawTitle();
 
-  // Audio setup (WebAudio)
-  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  const bgmGain = audioCtx.createGain(); bgmGain.gain.value = 0.06; bgmGain.connect(audioCtx.destination);
-  const sfxGain = audioCtx.createGain(); sfxGain.gain.value = 0.6; sfxGain.connect(audioCtx.destination);
-  let bgmOsc = null, bgmPlaying=false;
-  function startBGM(){ if (bgmPlaying) return; bgmPlaying=true; bgmOsc = audioCtx.createOscillator(); bgmOsc.type='sine'; bgmOsc.frequency.value=220; const lfo = audioCtx.createOscillator(); lfo.frequency.value=0.25; const lfoGain = audioCtx.createGain(); lfoGain.gain.value = 30; lfo.connect(lfoGain); lfoGain.connect(bgmOsc.frequency); bgmOsc.connect(bgmGain); lfo.start(); bgmOsc.start(); bgmOsc._lfo = lfo; }
-  function stopBGM(){ if (!bgmPlaying) return; bgmPlaying=false; bgmOsc._lfo.stop(); bgmOsc.stop(); bgmOsc.disconnect(); }
-  function playTone(freq, dur=0.08){ const o = audioCtx.createOscillator(); o.type='square'; o.frequency.value=freq; o.connect(sfxGain); o.start(); o.stop(audioCtx.currentTime+dur); }
-  function playJump(){ playTone(520,0.08); }
-  function playCoin(){ playTone(880,0.06); }
-  function playGoal(){ playTone(280,0.6); }
+  // Game setup
+  const player = {x:120, y:H-120, w:34, h:44, vx:0, vy:0, speed:3.4, jump:-10.6, grounded:false};
+  let running=false, paused=false, score=0, distance=0, speedBase=2.2;
+  const finishDistance=1000;
+  let platforms=[], coins=[], spawnX=0;
 
-  // Game variables
-  let running = false, paused = false; let score = 0, distance = 0; let speedBase = 2.2;
-  const finishDistance = 1000; // meters to finish
+  function initWorld(){
+    platforms=[]; coins=[]; spawnX=0;
+    platforms.push({x:-300,y:H-40,w:3000,h:40});
+    spawnX=600; for (let i=0;i<6;i++) spawnPlatform();
+    score=0; distance=0;
+    player.x=120; player.y=H-120; player.vx=0; player.vy=0; player.grounded=false;
+  }
 
-  // Player
-  const player = { x:120, y:H-120, w:34, h:44, vx:0, vy:0, speed:3.4, jump:-10.6, grounded:false };
+  function spawnPlatform(){
+    const w=80+Math.random()*140, gap=80+Math.random()*160;
+    const y=H-200+Math.random()*120;
+    const p={x:spawnX+gap,y,w,h:18}; platforms.push(p);
+    if (Math.random()<0.45) coins.push({x:p.x+p.w/2,y:p.y-18,r:8,collected:false});
+    spawnX=p.x+p.w;
+  }
 
-  // World
-  let platforms = [], coins = [], spawnX = 0;
+  function update(){
+    if (!running||paused) return;
+    if (keys['ArrowLeft']||keys['KeyA']) player.vx=Math.max(player.vx-0.6,-player.speed);
+    if (keys['ArrowRight']||keys['KeyD']) player.vx=Math.min(player.vx+0.6,player.speed);
+    if (!(keys['ArrowLeft']||keys['ArrowRight']||keys['KeyA']||keys['KeyD'])) player.vx*=0.85;
+    if ((keys['Space']||keys['ArrowUp']||keys['KeyW']) && player.grounded){ player.vy=player.jump; player.grounded=false; }
 
-  function initWorld(){ platforms = []; coins = []; spawnX = 0; platforms.push({x:-300,y:H-40,w:3000,h:40}); spawnX = 600; for (let i=0;i<6;i++) spawnPlatform(); score=0; distance=0; player.x=120; player.y=H-120; player.vx=0; player.vy=0; player.grounded=false; }
+    player.vy+=0.45; player.x+=player.vx; player.y+=player.vy;
+    const scroll=speedBase+Math.max(0,player.x-220)*0.005;
+    for (let p of platforms) p.x-=scroll;
+    for (let c of coins) c.x-=scroll;
+    spawnX-=scroll; distance+=scroll*0.02; score+=0.02*scroll;
 
-  function spawnPlatform(){ const minW=80,maxW=220; const w = minW + Math.random()*(maxW-minW); const gap = 80 + Math.random()*160; const yMin=H-180,yMax=H-80; const y = yMin + Math.random()*(yMax-yMin); const p = { x: spawnX + gap, y: Math.round(y), w: Math.round(w), h:18 }; platforms.push(p); if (Math.random()<0.45){ coins.push({ x: p.x + p.w/2, y: p.y - 18, r:8, collected:false }); } spawnX = p.x + p.w; }
-
-  // input
-  let keys = {};
-  document.addEventListener('keydown', e=>{ keys[e.code]=true; if ((e.code==='Space'||e.code==='ArrowUp') && running && player.grounded){ playJump(); } if (!running && e.code==='Enter'){ startGame(); } });
-  document.addEventListener('keyup', e=>{ keys[e.code]=false; });
-
-  // UI buttons
-  const startBtn = document.getElementById('startBtn');
-  const pauseBtn = document.getElementById('pauseBtn');
-  const resetBtn = document.getElementById('resetBtn');
-  const muteBtn = document.getElementById('muteBtn');
-  const restartBtn = document.getElementById('restartBtn');
-  const scoreDisplay = document.getElementById('scoreDisplay');
-  const distanceDisplay = document.getElementById('distanceDisplay');
-
-  startBtn.onclick = () => startGame();
-  pauseBtn.onclick = () => { if (!running) return; paused = !paused; pauseBtn.textContent = paused ? 'Resume' : 'Pause'; };
-  resetBtn.onclick = () => { initWorld(); paused=false; running=false; stopBGM(); overlayStart.style.display='flex'; overlayWin.style.display='none'; updateHUD(); drawTitle(); };
-  restartBtn.onclick = () => { initWorld(); overlayWin.style.display='none'; overlayStart.style.display='flex'; stopBGM(); running=false; };
-
-  let muted = false;
-  muteBtn.onclick = () => { muted = !muted; if (muted){ bgmGain.gain.value = 0; sfxGain.gain.value = 0; muteBtn.textContent='Unmute'; } else { bgmGain.gain.value = 0.06; sfxGain.gain.value = 0.6; muteBtn.textContent='Mute BGM'; } };
-
-  function startGame(){ if (running) return; if (audioCtx.state === 'suspended') audioCtx.resume(); initWorld(); overlayStart.style.display='none'; overlayWin.style.display='none'; running=true; paused=false; startBGM(); loop(); }
-
-  function rectCollide(a,b){ return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
-
-  function update(dt=1){ if (!running || paused) return;
-    if (keys['ArrowLeft'] || keys['KeyA']) player.vx = Math.max(player.vx - 0.6, -player.speed);
-    if (keys['ArrowRight'] || keys['KeyD']) player.vx = Math.min(player.vx + 0.6, player.speed);
-    if (!(keys['ArrowLeft']||keys['ArrowRight']||keys['KeyA']||keys['KeyD'])) player.vx *= 0.85;
-    if ((keys['Space'] || keys['ArrowUp'] || keys['KeyW']) && player.grounded){ player.vy = player.jump; player.grounded=false; }
-
-    player.vy += 0.45; player.x += player.vx; player.y += player.vy;
-
-    // world scroll and speed scaling
-    const scroll = speedBase + Math.max(0, player.x - 220) * 0.005;
-    for (let p of platforms) p.x -= scroll;
-    for (let c of coins) c.x -= scroll;
-    spawnX -= scroll;
-    distance += scroll * 0.02;
-    score += 0.02 * scroll;
-
-    // collisions
-    player.grounded = false;
+    player.grounded=false;
     for (let p of platforms){ if (rectCollide(player,p)){
-        if (player.vy > 0 && player.y + player.h - player.vy <= p.y + 4){ player.y = p.y - player.h; player.vy = 0; player.grounded = true; }
-        else if (player.vy < 0 && player.y >= p.y + p.h - 2){ player.y = p.y + p.h; player.vy = 0; }
-        else { if (player.x < p.x) player.x = p.x - player.w; else player.x = p.x + p.w; player.vx = 0; }
-      }}
+      if (player.vy>0 && player.y+player.h-player.vy<=p.y+4){ player.y=p.y-player.h; player.vy=0; player.grounded=true; }
+      else if (player.vy<0 && player.y>=p.y+p.h-2){ player.y=p.y+p.h; player.vy=0; }
+      else { if (player.x<p.x) player.x=p.x-player.w; else player.x=p.x+p.w; player.vx=0; }
+    }}
+    for (let c of coins){ if (!c.collected){
+      const dx=(player.x+player.w/2)-c.x, dy=(player.y+player.h/2)-c.y;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      if (dist<c.r+Math.max(player.w,player.h)/2-6){ c.collected=true; score+=150; }
+    }}
+    platforms=platforms.filter(p=>p.x+p.w>-300);
+    coins=coins.filter(c=>c.x>-200&&!c.collected);
+    while(spawnX<W+800) spawnPlatform();
 
-    for (let c of coins){ if (!c.collected){ const dx=(player.x+player.w/2)-c.x; const dy=(player.y+player.h/2)-c.y; const dist=Math.sqrt(dx*dx+dy*dy); if (dist < c.r + Math.max(player.w,player.h)/2 - 6){ c.collected=true; score+=150; playCoin(); } }}
-
-    // cleanup & spawn
-    platforms = platforms.filter(p => p.x + p.w > -300);
-    coins = coins.filter(c => c.x > -200 && !c.collected);
-    while (spawnX < W + 800) spawnPlatform();
-
-    // finish check
-    if (distance >= finishDistance){ // show finish
-      running = false; stopBGM(); playGoal(); overlayWin.style.display='flex'; document.getElementById('winText').textContent = 'YOU WIN! Score: ' + Math.floor(score);
+    if(distance>=finishDistance){
+      running=false; stopBGM();
+      overlayWin.style.display='flex';
+      document.getElementById('winText').textContent='YOU WIN! Score: '+Math.floor(score);
     }
-
-    // fall death
-    if (player.y > H + 150){ running = false; stopBGM(); overlayStart.style.display='flex'; alert('Kamu jatuh! Game over. Tekan Start lagi.'); }
-
+    if(player.y>H+150){ running=false; stopBGM(); overlayStart.style.display='flex'; alert('Kamu jatuh! Game over.'); }
     updateHUD();
   }
 
-  function updateHUD(){ scoreDisplay.textContent = 'Score: ' + Math.floor(score); distanceDisplay.textContent = 'Distance: ' + Math.floor(distance) + 'm'; }
-
-  function draw(){ ctx.clearRect(0,0,W,H);
-    // sky clouds
-    for (let i=0;i<5;i++){ const cx = (i*220 + (Date.now()/50)%(W+200)); ctx.globalAlpha=0.5; ctx.beginPath(); ctx.ellipse((cx)%W, 80 + (i%2)*12, 46,24,0,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    for(let i=0;i<5;i++){const cx=(i*220+(Date.now()/50)%(W+200));ctx.globalAlpha=0.5;ctx.beginPath();ctx.ellipse((cx)%W,80+(i%2)*12,46,24,0,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();}
     ctx.globalAlpha=1;
-
-    // draw platforms
-    for (let p of platforms){ ctx.fillStyle='#8B5A2B'; ctx.fillRect(p.x, p.y, p.w, p.h); ctx.fillStyle='#c09060'; ctx.fillRect(p.x+2, p.y, p.w-4, 4); }
-    // coins
-    for (let c of coins){ if (c.collected) continue; ctx.save(); ctx.translate(c.x, c.y); ctx.beginPath(); ctx.ellipse(0,0,c.r,c.r*0.8,0,0,Math.PI*2); ctx.fillStyle='gold'; ctx.fill(); ctx.restore(); }
-
-    // finish visual marker (if approaching)
-    if (distance > finishDistance - 120){ ctx.fillStyle='#333'; ctx.fillRect(W-120, H-220, 6, 160); ctx.fillStyle='#ff4d4d'; ctx.fillRect(W-114, H-210, 28, 16); ctx.font='14px sans-serif'; ctx.fillStyle='#222'; ctx.fillText('FINISH', W-116, H-220); }
-
-    // player
+    for(let p of platforms){ctx.fillStyle='#8B5A2B';ctx.fillRect(p.x,p.y,p.w,p.h);ctx.fillStyle='#c09060';ctx.fillRect(p.x+2,p.y,p.w-4,4);}
+    for(let c of coins){if(c.collected)continue;ctx.save();ctx.translate(c.x,c.y);ctx.beginPath();ctx.ellipse(0,0,c.r,c.r*0.8,0,0,Math.PI*2);ctx.fillStyle='gold';ctx.fill();ctx.restore();}
+    if(distance>finishDistance-120){ctx.fillStyle='#333';ctx.fillRect(W-120,H-220,6,160);ctx.fillStyle='#ff4d4d';ctx.fillRect(W-114,H-210,28,16);ctx.font='14px sans-serif';ctx.fillStyle='#222';ctx.fillText('FINISH',W-116,H-220);}
     drawPlayer();
-
-    // HUD overlay
-    ctx.fillStyle='#111'; ctx.font='16px sans-serif'; ctx.fillText('Score: ' + Math.floor(score), 14, 28);
   }
 
-  function drawPlayer(){ const p = player; ctx.fillStyle='#222'; ctx.fillRect(p.x+6, p.y+p.h-12, 10, 12); ctx.fillRect(p.x+p.w-16, p.y+p.h-12, 10, 12); ctx.fillStyle='#d33'; ctx.fillRect(p.x+4, p.y+6, p.w-8, 20); ctx.fillStyle='#ffcc99'; ctx.fillRect(p.x+6, p.y-6, p.w-12, 16); ctx.fillStyle='#d33'; ctx.fillRect(p.x+2, p.y-10, p.w-4, 6); }
+  function drawPlayer(){const p=player;ctx.fillStyle='#222';ctx.fillRect(p.x+6,p.y+p.h-12,10,12);ctx.fillRect(p.x+p.w-16,p.y+p.h-12,10,12);ctx.fillStyle='#d33';ctx.fillRect(p.x+4,p.y+6,p.w-8,20);ctx.fillStyle='#ffcc99';ctx.fillRect(p.x+6,p.y-6,p.w-12,16);ctx.fillStyle='#d33';ctx.fillRect(p.x+2,p.y-10,p.w-4,6);}
 
-  // main loop
-  let lastTime = 0;
-  function loop(ts){ if (!running) return; if (paused){ requestAnimationFrame(loop); return; } const delta = lastTime ? (ts - lastTime)/16 : 1; lastTime = ts; update(delta); draw(); requestAnimationFrame(loop); }
+  const keys={};
+  document.addEventListener('keydown',e=>keys[e.code]=true);
+  document.addEventListener('keyup',e=>keys[e.code]=false);
 
-  // mobile touch buttons
-  function createTouchButtons(){ const left=document.createElement('button'), right=document.createElement('button'), jump=document.createElement('button'); left.textContent='◀'; right.textContent='▶'; jump.textContent='↑'; Object.assign(left.style,{position:'fixed',left:'10px',bottom:'70px',width:'54px',height:'54px',fontSize:'24px',opacity:0.6}); Object.assign(right.style,{position:'fixed',left:'80px',bottom:'70px',width:'54px',height:'54px',fontSize:'24px',opacity:0.6}); Object.assign(jump.style,{position:'fixed',right:'10px',bottom:'70px',width:'64px',height:'54px',fontSize:'20px',opacity:0.6}); document.body.appendChild(left); document.body.appendChild(right); document.body.appendChild(jump); left.addEventListener('touchstart',e=>keys['ArrowLeft']=true); left.addEventListener('touchend',e=>keys['ArrowLeft']=false); right.addEventListener('touchstart',e=>keys['ArrowRight']=true); right.addEventListener('touchend',e=>keys['ArrowRight']=false); jump.addEventListener('touchstart',e=>{ if (player.grounded){ player.vy=player.jump; playJump(); } }); }
+  const startBtn=document.getElementById('startBtn');
+  const pauseBtn=document.getElementById('pauseBtn');
+  const resetBtn=document.getElementById('resetBtn');
+  const muteBtn=document.getElementById('muteBtn');
+  const restartBtn=document.getElementById('restartBtn');
+  const scoreDisplay=document.getElementById('scoreDisplay');
+  const distanceDisplay=document.getElementById('distanceDisplay');
 
-  // expose credit setter
-  window.setCredit = name => { document.getElementById('creditName').textContent = name; };
+  startBtn.onclick=()=>{initWorld();overlayStart.style.display='none';running=true;paused=false;startBGM();loop();};
+  pauseBtn.onclick=()=>{if(!running)return;paused=!paused;pauseBtn.textContent=paused?'Resume':'Pause';};
+  resetBtn.onclick=()=>{initWorld();paused=false;running=false;stopBGM();overlayStart.style.display='flex';overlayWin.style.display='none';updateHUD();drawTitle();};
+  restartBtn.onclick=()=>{initWorld();overlayWin.style.display='none';overlayStart.style.display='flex';stopBGM();running=false;};
+  muteBtn.onclick=()=>{muted=!muted;bgmAudio.muted=muted;muteBtn.textContent=muted?'Unmute':'Mute BGM';};
 
-  // init
-  initWorld(); if ('ontouchstart' in window) createTouchButtons(); updateHUD();
+  function rectCollide(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}
+  function updateHUD(){scoreDisplay.textContent='Score: '+Math.floor(score);distanceDisplay.textContent='Distance: '+Math.floor(distance)+'m';}
 
+  let last=0;
+  function loop(ts){if(!running)return;if(paused){requestAnimationFrame(loop);return;}const delta=last?(ts-last)/16:1;last=ts;update(delta);draw();requestAnimationFrame(loop);}
+
+  initWorld();updateHUD();
 })();
 </script>
 </body>
